@@ -1,6 +1,6 @@
-#include <cstdlib>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 int main(int argc, char **argv) {
 
     lsh_loop();
@@ -24,6 +24,11 @@ void lsh_loop(void)
 }
 
 #define LSH_RL_BUFSIZE 1024
+/**
+ * @brief Gets characters from input and turn them into a line.
+ * 
+ * @return char* the whole string.
+ */
 char *lsh_read_line(void)
 {
     int bufsize = LSH_RL_BUFSIZE;
@@ -58,5 +63,44 @@ char *lsh_read_line(void)
                 exit(EXIT_FAILURE);
             }
         }
+    }
+}
+
+#define LSH_TOK_BUFSIZE 64
+#define LSH_TOK_DELIM " \t\r\n\a"
+/**
+ * @brief This function separates a string into tokens.
+ * 
+ * @param line the given string to be separated.
+ * @return char** the array of tokens.
+ */
+char **lsh_split_line(char *line)
+{
+    int bufsize = LSH_TOK_BUFSIZE;
+    int position = 0;
+    char **tokens = malloc(bufsize * sizeof(char*)); // make an array of pointers of string.
+    char *token;
+
+    if (!tokens) {
+        fprintf(stderr, "lsh: allocatoiin error\n");
+        exit(EXIT_FAILURE);
+    }
+
+    token = strtok(line, LSH_TOK_DELIM); // we may replace it with strtok_r
+    while (token != NULL) {
+        tokens[position] = token;
+        position++;
+        
+        if (position >= bufsize) {
+            bufsize += LSH_TOK_BUFSIZE;
+            tokens = realloc(tokens, bufsize * sizeof(char*));
+            if (!tokens) {
+                fprintf(stderr, "lsh: allocation error\n");
+                exit(EXIT_FAILURE);
+            }
+        }
+        token = strtok(NULL, LSH_TOK_DELIM);
+        tokens[position] = NULL;
+        return tokens;
     }
 }
