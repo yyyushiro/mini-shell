@@ -1,27 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-int main(int argc, char **argv) {
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include "builtins.h"
 
-    lsh_loop();
-}
 
-void lsh_loop(void)
-{
-    char *line;
-    char **args;
-    int status;
-
-    do {
-        printf("> ");
-        line = lsh_read_line();
-        args = lsh_split_line(line);
-        status = lsh_execute(args);
-
-        free(line);
-        free(args);
-    } while (status);
-}
 
 #define LSH_RL_BUFSIZE 1024
 /**
@@ -33,7 +18,7 @@ char *lsh_read_line(void)
 {
     int bufsize = LSH_RL_BUFSIZE;
     int position = 0;
-    char *buffer = malloc(sizeof(char) * bufsize);
+    char *buffer = (char *)malloc(sizeof(char) * bufsize);
     int c;
 
     if (!buffer) {
@@ -101,6 +86,105 @@ char **lsh_split_line(char *line)
         }
         token = strtok(NULL, LSH_TOK_DELIM);
         tokens[position] = NULL;
-        return tokens;
     }
+    return tokens;
+}
+
+/**
+ * @brief This function calls fork() and execpv() to make a child process and run the specified function.
+ * 
+ * @param args arguments including function name and other parameters.
+ * @return int status code.
+ */
+int lsh_launch(char **args) 
+{
+    pid_t pid, wpid;
+    int status;
+
+    pid = fork();
+    if (pid == 0) {
+        // Child process
+        if (execvp(args[0], args) == -1) {
+            // file is the name of program
+            // this line is reached only when the program failed.
+            perror("lsh");
+        }
+        exit(EXIT_FAILURE);
+    } else if (pid < 0) {
+        // Error forking
+        perror("lsh");
+        return -1;
+    } else {
+        // Parent process
+        do {
+            /*
+            waitpid is a function that waits the child process ends.
+            The parent process stops until the child process ends.
+            After it finished, status gets an int representing how the child process ended, used for if it breaks the while loop.
+            WUNTRACED allows waitpid to detect when the child process stops.
+            wpid gets child's pid when waitpid succeeds, -1 when fails.
+            */
+            wpid = waitpid(pid, &status, WUNTRACED);
+            if (wpid == -1) {
+                perror("lsh");
+                /*
+                Since this is called from lsh_execute, if it returns 0, then status becomes 0 and loop stops in lsh_loop.
+                We are going to return -1, in this case.
+                */
+                return -1; 
+                        
+            }
+        } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+        return 1;
+    }
+}
+
+/**
+ * @brief This function takes arguments and decide if it calls a built-in function or make another process.
+ * 
+ * @param args arguments including function name and other parameters.
+ * @return int status code.
+ */
+int lsh_execute(char **args)
+{
+    if (args[0] == NULL) {
+        // An empty command was entered.
+        return 1;
+    }
+    // If the given function name is built-in, then just calls it.
+    for (int i = 0; i < lsh_num_builtins(); i++) {
+        if (strcmp(args[0], builtin_str[i]) == 0) {
+            return (*builtin_func[i]) (args);
+        } 
+    }
+    // If not built-in, then use fork() and execvp() to start new process.
+    return lsh_launch(args);
+}
+
+/**
+ * @brief This function ttakes user's input and execute command according to 
+ * 
+ */
+void lsh_loop(void)
+{
+    char *line;
+    char **args;
+    int status;
+
+    do {
+        printf("> ");
+        line = lsh_read_line();
+        args = lsh_split_line(line);
+        status = lsh_execute(args);
+
+        free(line);
+        free(args);
+    } while (status);
+}
+
+int main(int argc, char **argv) {
+    (void)argc;
+    (void)argv;
+
+    lsh_loop();
 }
