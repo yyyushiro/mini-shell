@@ -79,7 +79,11 @@ char **lsh_split_line(char *line)
         exit(EXIT_FAILURE);
     }
 
-    token = strtok(line, LSH_TOK_DELIM); // we may replace it with strtok_r
+    /*
+    strtok returns a token. It remembers the position of the last token it returned, so that it can return the next token automatically.
+    */
+    token = strtok(line, LSH_TOK_DELIM); 
+    
     while (token != NULL) {
         tokens[position] = token;
         position++;
