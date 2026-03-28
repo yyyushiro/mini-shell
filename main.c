@@ -28,13 +28,20 @@ char *lsh_read_line(void)
     }
 
     while (1) {
-        // Read a character
+        /*
+        getchar() reads a character from stdin. It waits a character from stdin until new characters come.
+        This is the reason we can implement bachslash escaping.
+        */
         c = getchar();
 
         // If we hit EOF, replace it with a null character and return.
         if (c == EOF || c == '\n') {
             buffer[position] = '\0';
             return buffer;
+        } else if (c == '\\') {
+            c = getchar();
+            buffer[position] = ' ';
+            printf(">");
         } else {
             buffer[position] = c;
         }
@@ -175,13 +182,14 @@ void lsh_loop(void)
 
     do {
         getcwd(cwd, sizeof(cwd));
-        printf("%s\n> ", cwd);
+        printf("current directory: %s\n> ", cwd);
         line = lsh_read_line();
         args = lsh_split_line(line);
         status = lsh_execute(args);
 
         free(line);
         free(args);
+        printf("\n");
     } while (status);
 }
 
