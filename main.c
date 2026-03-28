@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include "builtins.h"
+#include <limits.h>
 
 
 
@@ -170,9 +171,11 @@ void lsh_loop(void)
     char *line;
     char **args;
     int status;
+    char cwd[PATH_MAX];
 
     do {
-        printf("> ");
+        getcwd(cwd, sizeof(cwd));
+        printf("%s\n> ", cwd);
         line = lsh_read_line();
         args = lsh_split_line(line);
         status = lsh_execute(args);
@@ -181,6 +184,7 @@ void lsh_loop(void)
         free(args);
     } while (status);
 }
+
 
 int main(int argc, char **argv) {
     (void)argc;
